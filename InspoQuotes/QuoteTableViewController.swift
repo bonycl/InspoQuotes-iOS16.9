@@ -38,6 +38,10 @@ class QuoteTableViewController: UITableViewController, SKPaymentTransactionObser
         super.viewDidLoad()
         //name self class as delegate for receiving payments status
         SKPaymentQueue.default().add(self)
+        
+        if isPurchased() {
+            showPremiumQuotes()
+        }
     }
 
     // MARK: - Table view data source
@@ -53,6 +57,8 @@ class QuoteTableViewController: UITableViewController, SKPaymentTransactionObser
         if indexPath.row < quotesToShow.count {
             cell.textLabel?.text = quotesToShow[indexPath.row]
             cell.textLabel?.numberOfLines = 0
+            cell.textLabel?.textColor = #colorLiteral(red: 0, green: 0, blue: 0, alpha: 1)
+            cell.accessoryType = .none
         } else {
             cell.textLabel?.text = "Get More Quotes"
             cell.textLabel?.textColor = #colorLiteral(red: 0.1019607857, green: 0.2784313858, blue: 0.400000006, alpha: 1)
@@ -64,6 +70,7 @@ class QuoteTableViewController: UITableViewController, SKPaymentTransactionObser
     
     //MARK: - Table view delegate methods
     override func tableView(_ tableView: UITableView, didSelectRowAt indexPath: IndexPath) {
+        
         if indexPath.row == quotesToShow.count {
             print("DEBUG PRINT:" , "Buy Quotes pressed")
             buyPremiumQuotes()
@@ -74,10 +81,12 @@ class QuoteTableViewController: UITableViewController, SKPaymentTransactionObser
     //MARK: - In-App Purchase Method
     
     func buyPremiumQuotes() {
+        
         if SKPaymentQueue.canMakePayments() {
             // can make payments
             let paymentRequest = SKMutablePayment()
             paymentRequest.productIdentifier = productID
+            
             SKPaymentQueue.default().add(paymentRequest)
             
         } else {
@@ -86,18 +95,50 @@ class QuoteTableViewController: UITableViewController, SKPaymentTransactionObser
         }
     }
     
-    //delegate for payment. can be set few(4) transaction in a time
+    //delegate for payment. can be set few(ex 4) transaction in a time
     func paymentQueue(_ queue: SKPaymentQueue, updatedTransactions transactions: [SKPaymentTransaction]) {
         
         for transaction in transactions {
             if transaction.transactionState == .purchased {
                 //User payment successful
                 print("DEBUG PRINT" , "User payment successful.")
+                
+                showPremiumQuotes()
+                
+                UserDefaults.standard.setValue(true, forKey: productID)
+                
+                //is transaction completed
+                SKPaymentQueue.default().finishTransaction(transaction)
+                
             } else if transaction.transactionState == .failed {
-                //Payment failed
-                print("DEBUG PRINT" , "Transaction failed.")
+                //with storeKit we can use unique error handler
+                
+                if let error = transaction.error {
+                    let errorDescription = error.localizedDescription
+                    print("DEBUG PRINT" , "Transaction failed due to error: \(errorDescription).")
+                }
+                SKPaymentQueue.default().finishTransaction(transaction)
+
             }
         }
+    }
+    func showPremiumQuotes() {
+        
+        quotesToShow.append(contentsOf: premiumQuotes)
+        tableView.reloadData()
+    }
+    
+    func isPurchased() -> Bool {
+        
+        let purchaseStatus = UserDefaults.standard.bool(forKey: productID)
+        if purchaseStatus {
+            print("DEBUG PRINT" , "Previously purchased.")
+            return true
+        } else {
+            print("DEBUG PRINT" , "Never purchased.")
+            return false
+        }
+       
     }
     
     @IBAction func restorePressed(_ sender: UIBarButtonItem) {
